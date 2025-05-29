@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Users, Clock, Calendar } from 'lucide-react';
 
 const FrontDeskDashboard: React.FC = () => {
-  const { patients, registerPatient } = useHospital();
+  const { patients, registerPatient, isLoading } = useHospital();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isRegistering, setIsRegistering] = useState(false);
@@ -22,26 +22,34 @@ const FrontDeskDashboard: React.FC = () => {
     nextOfKinPhone: ''
   });
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!user) return;
     
-    registerPatient({
-      ...patientForm,
-      registeredBy: user.id
-    });
+    try {
+      await registerPatient({
+        ...patientForm,
+        registeredBy: user.id
+      });
 
-    toast({
-      title: "Patient Registered Successfully",
-      description: `${patientForm.fullName} has been registered and broadcasted to labor rooms.`,
-    });
+      toast({
+        title: "Patient Registered Successfully",
+        description: `${patientForm.fullName} has been registered and broadcasted to labor rooms.`,
+      });
 
-    setPatientForm({
-      fullName: '',
-      deliveryDate: '',
-      nextOfKinName: '',
-      nextOfKinPhone: ''
-    });
-    setIsRegistering(false);
+      setPatientForm({
+        fullName: '',
+        deliveryDate: '',
+        nextOfKinName: '',
+        nextOfKinPhone: ''
+      });
+      setIsRegistering(false);
+    } catch (error) {
+      toast({
+        title: "Registration Failed",
+        description: "Failed to register patient. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -69,6 +77,19 @@ const FrontDeskDashboard: React.FC = () => {
     const registeredDate = new Date(p.registeredAt).toDateString();
     return today === registeredDate;
   });
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">

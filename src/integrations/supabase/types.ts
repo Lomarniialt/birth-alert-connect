@@ -9,7 +9,221 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      activity_logs: {
+        Row: {
+          action: string
+          details: string
+          id: string
+          patient_id: string | null
+          timestamp: string | null
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          action: string
+          details: string
+          id?: string
+          patient_id?: string | null
+          timestamp?: string | null
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          action?: string
+          details?: string
+          id?: string
+          patient_id?: string | null
+          timestamp?: string | null
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      labor_rooms: {
+        Row: {
+          assigned_nurse_id: string | null
+          created_at: string | null
+          current_patient_id: string | null
+          id: string
+          is_occupied: boolean | null
+          name: string
+        }
+        Insert: {
+          assigned_nurse_id?: string | null
+          created_at?: string | null
+          current_patient_id?: string | null
+          id: string
+          is_occupied?: boolean | null
+          name: string
+        }
+        Update: {
+          assigned_nurse_id?: string | null
+          created_at?: string | null
+          current_patient_id?: string | null
+          id?: string
+          is_occupied?: boolean | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "labor_rooms_assigned_nurse_id_fkey"
+            columns: ["assigned_nurse_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_templates: {
+        Row: {
+          content: string
+          created_at: string | null
+          created_by: string
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          created_by: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          created_by?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          assigned_nurse_id: string | null
+          baby_gender: Database["public"]["Enums"]["baby_gender"] | null
+          delivered_at: string | null
+          delivery_date: string | null
+          delivery_notes: string | null
+          full_name: string
+          id: string
+          labor_room_id: string | null
+          next_of_kin_name: string
+          next_of_kin_phone: string
+          registered_at: string | null
+          registered_by: string
+          status: Database["public"]["Enums"]["patient_status"] | null
+        }
+        Insert: {
+          assigned_nurse_id?: string | null
+          baby_gender?: Database["public"]["Enums"]["baby_gender"] | null
+          delivered_at?: string | null
+          delivery_date?: string | null
+          delivery_notes?: string | null
+          full_name: string
+          id?: string
+          labor_room_id?: string | null
+          next_of_kin_name: string
+          next_of_kin_phone: string
+          registered_at?: string | null
+          registered_by: string
+          status?: Database["public"]["Enums"]["patient_status"] | null
+        }
+        Update: {
+          assigned_nurse_id?: string | null
+          baby_gender?: Database["public"]["Enums"]["baby_gender"] | null
+          delivered_at?: string | null
+          delivery_date?: string | null
+          delivery_notes?: string | null
+          full_name?: string
+          id?: string
+          labor_room_id?: string | null
+          next_of_kin_name?: string
+          next_of_kin_phone?: string
+          registered_at?: string | null
+          registered_by?: string
+          status?: Database["public"]["Enums"]["patient_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_assigned_nurse_id_fkey"
+            columns: ["assigned_nurse_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_labor_room_id_fkey"
+            columns: ["labor_room_id"]
+            isOneToOne: false
+            referencedRelation: "labor_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_registered_by_fkey"
+            columns: ["registered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          is_active: boolean | null
+          labor_room_id: string | null
+          name: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id: string
+          is_active?: boolean | null
+          labor_room_id?: string | null
+          name: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          labor_room_id?: string | null
+          name?: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +232,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      baby_gender: "male" | "female"
+      patient_status: "registered" | "in_labor" | "delivered"
+      user_role: "admin" | "front_desk" | "labor_nurse"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +349,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      baby_gender: ["male", "female"],
+      patient_status: ["registered", "in_labor", "delivered"],
+      user_role: ["admin", "front_desk", "labor_nurse"],
+    },
   },
 } as const

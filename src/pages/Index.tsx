@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import LoginForm from '@/components/Login/LoginForm';
+import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Layout/Header';
 import AdminDashboard from '@/components/Dashboard/AdminDashboard';
 import FrontDeskDashboard from '@/components/Dashboard/FrontDeskDashboard';
@@ -9,6 +9,13 @@ import LaborNurseDashboard from '@/components/Dashboard/LaborNurseDashboard';
 
 const Index = () => {
   const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, isLoading, navigate]);
 
   if (isLoading) {
     return (
@@ -22,7 +29,7 @@ const Index = () => {
   }
 
   if (!user) {
-    return <LoginForm />;
+    return null; // Will redirect to auth
   }
 
   const renderDashboard = () => {

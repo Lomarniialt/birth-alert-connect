@@ -1,83 +1,83 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthContextType } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import { Session } from '@supabase/supabase-js';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Mock users for demonstration
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'Dr. Sarah Admin',
-    email: 'admin@hospital.com',
-    role: 'admin',
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z'
-  },
-  {
-    id: '2',
-    name: 'Mary Johnson',
-    email: 'frontdesk@hospital.com',
-    role: 'front_desk',
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z'
-  },
-  {
-    id: '3',
-    name: 'Nurse Lisa Brown',
-    email: 'nurse1@hospital.com',
-    role: 'labor_nurse',
-    laborRoomId: 'room1',
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z'
-  },
-  {
-    id: '4',
-    name: 'Nurse Carol White',
-    email: 'nurse2@hospital.com',
-    role: 'labor_nurse',
-    laborRoomId: 'room2',
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z'
-  }
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          // Fetch user profile from profiles table
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profile) {
+            setUser({
+              id: profile.id,
+              name: profile.name,
+              email: profile.email,
+              role: profile.role,
+              laborRoomId: profile.labor_room_id,
+              isActive: profile.is_active,
+              createdAt: profile.created_at
+            });
+          }
+        } else {
+          setUser(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
     // Check for existing session
-    const savedUser = localStorage.getItem('hospitalUser');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
     
-    // For demo purposes, accept any password for existing users
-    const foundUser = mockUsers.find(u => u.email === email && u.isActive);
-    
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('hospitalUser', JSON.stringify(foundUser));
+    if (error) {
+      console.error('Login error:', error);
       setIsLoading(false);
-      return true;
+      return false;
     }
     
-    setIsLoading(false);
-    return false;
+    return true;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Logout error:', error);
+    }
     setUser(null);
-    localStorage.removeItem('hospitalUser');
+    setSession(null);
   };
 
   return (
