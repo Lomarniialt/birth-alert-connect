@@ -72,6 +72,24 @@ const FrontDeskDashboard: React.FC = () => {
     );
   };
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+
+  const formatDeliveryDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+
   const todayPatients = patients.filter(p => {
     const today = new Date().toDateString();
     const registeredDate = new Date(p.registeredAt).toDateString();
@@ -220,17 +238,18 @@ const FrontDeskDashboard: React.FC = () => {
                   <div>
                     <h3 className="font-medium">{patient.fullName}</h3>
                     <p className="text-sm text-gray-600">
-                      Next of Kin: {patient.nextOfKinName} ({patient.nextOfKinPhone})
+                      Next of Kin: {patient.nextOfKinName || 'N/A'} 
+                      {patient.nextOfKinPhone && ` (${patient.nextOfKinPhone})`}
                     </p>
                     <p className="text-xs text-gray-500">
-                      Registered: {new Date(patient.registeredAt).toLocaleString()}
+                      Registered: {formatDate(patient.registeredAt)}
                     </p>
                   </div>
                   <div className="text-right">
                     {getStatusBadge(patient.status)}
                     {patient.deliveryDate && (
                       <p className="text-xs text-gray-500 mt-1">
-                        Expected: {new Date(patient.deliveryDate).toLocaleDateString()}
+                        Expected: {formatDeliveryDate(patient.deliveryDate)}
                       </p>
                     )}
                   </div>

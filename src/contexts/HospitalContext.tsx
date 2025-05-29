@@ -18,6 +18,8 @@ interface HospitalContextType {
   updateMessageTemplate: (id: string, template: Partial<MessageTemplate>) => Promise<void>;
   addActivityLog: (log: Omit<ActivityLog, 'id' | 'timestamp'>) => Promise<void>;
   refreshData: () => Promise<void>;
+  createLaborRoom: (name: string) => Promise<void>;
+  updateLaborRoom: (id: string, updates: { assignedNurseId?: string; name?: string }) => Promise<void>;
 }
 
 const HospitalContext = createContext<HospitalContextType | null>(null);
@@ -47,7 +49,24 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
     
-    setPatients(data || []);
+    // Map database fields to TypeScript interface
+    const mappedPatients: Patient[] = (data || []).map(patient => ({
+      id: patient.id,
+      fullName: patient.full_name,
+      deliveryDate: patient.delivery_date,
+      nextOfKinName: patient.next_of_kin_name,
+      nextOfKinPhone: patient.next_of_kin_phone,
+      status: patient.status,
+      assignedNurseId: patient.assigned_nurse_id,
+      laborRoomId: patient.labor_room_id,
+      registeredBy: patient.registered_by,
+      registeredAt: patient.registered_at,
+      deliveredAt: patient.delivered_at,
+      babyGender: patient.baby_gender,
+      deliveryNotes: patient.delivery_notes
+    }));
+    
+    setPatients(mappedPatients);
   };
 
   const fetchLaborRooms = async () => {
@@ -61,7 +80,16 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
     
-    setLaborRooms(data || []);
+    // Map database fields to TypeScript interface
+    const mappedRooms: LaborRoom[] = (data || []).map(room => ({
+      id: room.id,
+      name: room.name,
+      isOccupied: room.is_occupied,
+      assignedNurseId: room.assigned_nurse_id,
+      currentPatientId: room.current_patient_id
+    }));
+    
+    setLaborRooms(mappedRooms);
   };
 
   const fetchMessageTemplates = async () => {
@@ -75,7 +103,16 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
     
-    setMessageTemplates(data || []);
+    // Map database fields to TypeScript interface
+    const mappedTemplates: MessageTemplate[] = (data || []).map(template => ({
+      id: template.id,
+      name: template.name,
+      content: template.content,
+      isActive: template.is_active,
+      createdBy: template.created_by
+    }));
+    
+    setMessageTemplates(mappedTemplates);
   };
 
   const fetchActivityLogs = async () => {
@@ -90,7 +127,18 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
     
-    setActivityLogs(data || []);
+    // Map database fields to TypeScript interface
+    const mappedLogs: ActivityLog[] = (data || []).map(log => ({
+      id: log.id,
+      action: log.action,
+      details: log.details,
+      userId: log.user_id,
+      userName: log.user_name,
+      timestamp: log.timestamp,
+      patientId: log.patient_id
+    }));
+    
+    setActivityLogs(mappedLogs);
   };
 
   const refreshData = async () => {
@@ -333,6 +381,63 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await fetchMessageTemplates();
   };
 
+  const createLaborRoom = async (name: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('labor_rooms')
+      .insert({
+        id: `room_${Date.now()}`,
+        name: name
+      });
+
+    if (error) {
+      console.error('Error creating labor room:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create labor room",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: "Labor room created successfully",
+    });
+
+    await fetchLaborRooms();
+  };
+
+  const updateLaborRoom = async (id: string, updates: { assignedNurseId?: string; name?: string }) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('labor_rooms')
+      .update({
+        assigned_nurse_id: updates.assignedNurseId,
+        name: updates.name
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating labor room:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update labor room",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: "Labor room updated successfully",
+    });
+
+    await fetchLaborRooms();
+  };
+
   return (
     <HospitalContext.Provider value={{
       patients,
@@ -346,7 +451,9 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       addMessageTemplate,
       updateMessageTemplate,
       addActivityLog,
-      refreshData
+      refreshData,
+      createLaborRoom,
+      updateLaborRoom
     }}>
       {children}
     </HospitalContext.Provider>

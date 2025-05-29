@@ -4,21 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { Heart, User, UserPlus } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const AuthPage: React.FC = () => {
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const [signupForm, setSignupForm] = useState({ 
-    name: '', 
-    email: '', 
-    password: '', 
-    confirmPassword: '' 
-  });
   const { login, isLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -43,48 +35,6 @@ const AuthPage: React.FC = () => {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (signupForm.password !== signupForm.confirmPassword) {
-      toast({
-        title: "Password Mismatch",
-        description: "Passwords do not match",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const { data, error } = await supabase.auth.signUp({
-      email: signupForm.email,
-      password: signupForm.password,
-      options: {
-        data: {
-          name: signupForm.name
-        }
-      }
-    });
-
-    if (error) {
-      toast({
-        title: "Signup Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (data.user) {
-      toast({
-        title: "Account Created Successfully",
-        description: "Please check your email to verify your account",
-      });
-      
-      // Clear form
-      setSignupForm({ name: '', email: '', password: '', confirmPassword: '' });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
@@ -98,131 +48,56 @@ const AuthPage: React.FC = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Welcome</CardTitle>
+            <CardTitle>Welcome Back</CardTitle>
             <CardDescription>
-              Access your account or create a new one
+              Sign in to access your account
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Login
-                </TabsTrigger>
-                <TabsTrigger value="signup" className="flex items-center gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Sign Up
-                </TabsTrigger>
-              </TabsList>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <Input
+                  id="login-email"
+                  type="email"
+                  value={loginForm.email}
+                  onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
               
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <Input
-                      id="login-email"
-                      type="email"
-                      value={loginForm.email}
-                      onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                      placeholder="Enter your email"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password">Password</Label>
-                    <Input
-                      id="login-password"
-                      type="password"
-                      value={loginForm.password}
-                      onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                      placeholder="Enter your password"
-                      required
-                    />
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Signing in...' : 'Sign In'}
-                  </Button>
-                </form>
-              </TabsContent>
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Password</Label>
+                <Input
+                  id="login-password"
+                  type="password"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
               
-              <TabsContent value="signup">
-                <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      value={signupForm.name}
-                      onChange={(e) => setSignupForm({ ...signupForm, name: e.target.value })}
-                      placeholder="Enter your full name"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      value={signupForm.email}
-                      onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
-                      placeholder="Enter your email"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      value={signupForm.password}
-                      onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
-                      placeholder="Enter your password"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-confirm">Confirm Password</Label>
-                    <Input
-                      id="signup-confirm"
-                      type="password"
-                      value={signupForm.confirmPassword}
-                      onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
-                      placeholder="Confirm your password"
-                      required
-                    />
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-green-600 hover:bg-green-700"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Creating Account...' : 'Create Account'}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+              <Button 
+                type="submit" 
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </form>
           </CardContent>
         </Card>
 
         <Card className="border-blue-200">
           <CardHeader>
-            <CardTitle className="text-sm text-blue-700">System Information</CardTitle>
+            <CardTitle className="text-sm text-blue-700">System Access</CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-blue-600 space-y-1">
-            <p>• New users are assigned the 'Front Desk' role by default</p>
-            <p>• Admins can update user roles in the system</p>
-            <p>• Contact your administrator for role changes</p>
+            <p>• New accounts are created by administrators only</p>
+            <p>• Contact your system administrator for account access</p>
+            <p>• Default role assignments are managed by admins</p>
           </CardContent>
         </Card>
       </div>

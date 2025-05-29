@@ -4,11 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useHospital } from '@/contexts/HospitalContext';
-import { Users, Activity, MessageSquare, Calendar } from 'lucide-react';
+import { Users, Activity, MessageSquare, Calendar, Home } from 'lucide-react';
 import UserManagement from './AdminComponents/UserManagement';
 import TemplateManagement from './AdminComponents/TemplateManagement';
 import ActivityLogs from './AdminComponents/ActivityLogs';
 import SystemStats from './AdminComponents/SystemStats';
+import RoomManagement from './AdminComponents/RoomManagement';
 
 const AdminDashboard: React.FC = () => {
   const { patients, activityLogs, messageTemplates } = useHospital();
@@ -35,18 +36,22 @@ const AdminDashboard: React.FC = () => {
       <SystemStats stats={stats} />
 
       <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            User Management
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="rooms" className="flex items-center gap-2">
+            <Home className="h-4 w-4" />
+            Rooms
           </TabsTrigger>
           <TabsTrigger value="templates" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
-            Message Templates
+            Templates
           </TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
-            Activity Logs
+            Activity
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
@@ -56,6 +61,10 @@ const AdminDashboard: React.FC = () => {
 
         <TabsContent value="users">
           <UserManagement />
+        </TabsContent>
+
+        <TabsContent value="rooms">
+          <RoomManagement />
         </TabsContent>
 
         <TabsContent value="templates">

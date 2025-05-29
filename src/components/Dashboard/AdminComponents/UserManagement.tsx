@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { Plus, Edit2, Save, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useHospital } from '@/contexts/HospitalContext';
 
 interface Profile {
   id: string;
@@ -22,11 +23,19 @@ interface Profile {
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<Profile[]>([]);
-  const [laborRooms, setLaborRooms] = useState<any[]>([]);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Profile>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'front_desk' as 'admin' | 'front_desk' | 'labor_nurse',
+    labor_room_id: ''
+  });
   const { toast } = useToast();
+  const { laborRooms, updateLaborRoom } = useHospital();
 
   const fetchUsers = async () => {
     const { data, error } = await supabase
@@ -47,24 +56,10 @@ const UserManagement: React.FC = () => {
     setUsers(data || []);
   };
 
-  const fetchLaborRooms = async () => {
-    const { data, error } = await supabase
-      .from('labor_rooms')
-      .select('*')
-      .order('name');
-    
-    if (error) {
-      console.error('Error fetching labor rooms:', error);
-      return;
-    }
-    
-    setLaborRooms(data || []);
-  };
-
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([fetchUsers(), fetchLaborRooms()]);
+      await fetchUsers();
       setIsLoading(false);
     };
     
@@ -99,12 +94,13 @@ const UserManagement: React.FC = () => {
   const handleSaveEdit = async () => {
     if (!editingUser || !editForm) return;
 
+    // Update user profile
     const { error } = await supabase
       .from('profiles')
       .update({
         name: editForm.name,
         role: editForm.role,
-        labor_room_id: editForm.labor_room_id,
+        labor_room_id: editForm.labor_room_id || null,
         is_active: editForm.is_active
       })
       .eq('id', editingUser);
@@ -117,6 +113,13 @@ const UserManagement: React.FC = () => {
         variant: "destructive"
       });
       return;
+    }
+
+    // If assigning labor nurse to room, update the room
+    if (editForm.role === 'labor_nurse' && editForm.labor_room_id) {
+      await updateLaborRoom(editForm.labor_room_id, {
+        assignedNurseId: editingUser
+      });
     }
 
     toast({
@@ -158,6 +161,83 @@ const UserManagement: React.FC = () => {
     await fetchUsers();
   };
 
+  const handleAddUser = async () => {
+    if (!newUserForm.name || !newUserForm.email || !newUserForm.password) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Create user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newUserForm.email,
+        password: newUserForm.password,
+        options: {
+          data: {
+            name: newUserForm.name
+          }
+        }
+      });
+
+      if (authError) {
+        toast({
+          title: "Error",
+          description: authError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (authData.user) {
+        // Update the profile with the correct role and room assignment
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            role: newUserForm.role,
+            labor_room_id: newUserForm.labor_room_id || null
+          })
+          .eq('id', authData.user.id);
+
+        if (profileError) {
+          console.error('Error updating profile:', profileError);
+        }
+
+        // If assigning labor nurse to room, update the room
+        if (newUserForm.role === 'labor_nurse' && newUserForm.labor_room_id) {
+          await updateLaborRoom(newUserForm.labor_room_id, {
+            assignedNurseId: authData.user.id
+          });
+        }
+
+        toast({
+          title: "Success",
+          description: "User created successfully",
+        });
+
+        setNewUserForm({
+          name: '',
+          email: '',
+          password: '',
+          role: 'front_desk',
+          labor_room_id: ''
+        });
+        setShowAddUser(false);
+        await fetchUsers();
+      }
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create user",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -172,12 +252,100 @@ const UserManagement: React.FC = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>User Management</CardTitle>
-          <CardDescription>
-            Manage system users and their permissions
-          </CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>
+                Manage system users and their permissions
+              </CardDescription>
+            </div>
+            <Button onClick={() => setShowAddUser(true)} disabled={showAddUser}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add New User
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
+          {showAddUser && (
+            <div className="mb-6 p-4 border rounded-lg bg-gray-50">
+              <h3 className="font-medium mb-4">Add New User</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="new-name">Full Name</Label>
+                  <Input
+                    id="new-name"
+                    value={newUserForm.name}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, name: e.target.value })}
+                    placeholder="Enter full name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-email">Email</Label>
+                  <Input
+                    id="new-email"
+                    type="email"
+                    value={newUserForm.email}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                    placeholder="Enter email address"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-password">Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newUserForm.password}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                    placeholder="Enter password"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-role">Role</Label>
+                  <Select 
+                    value={newUserForm.role} 
+                    onValueChange={(value) => setNewUserForm({ ...newUserForm, role: value as any })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="front_desk">Front Desk Officer</SelectItem>
+                      <SelectItem value="labor_nurse">Labor Room Nurse</SelectItem>
+                      <SelectItem value="admin">Administrator</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {newUserForm.role === 'labor_nurse' && (
+                  <div>
+                    <Label htmlFor="new-room">Assigned Labor Room</Label>
+                    <Select 
+                      value={newUserForm.labor_room_id} 
+                      onValueChange={(value) => setNewUserForm({ ...newUserForm, labor_room_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select room" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No room assigned</SelectItem>
+                        {laborRooms.map((room) => (
+                          <SelectItem key={room.id} value={room.id}>
+                            {room.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 mt-4">
+                <Button onClick={handleAddUser}>Create User</Button>
+                <Button variant="outline" onClick={() => setShowAddUser(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4">
             {users.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
