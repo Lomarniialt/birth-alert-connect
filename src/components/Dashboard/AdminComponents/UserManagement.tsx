@@ -32,7 +32,7 @@ const UserManagement: React.FC = () => {
     email: '',
     password: '',
     role: 'front_desk' as 'admin' | 'front_desk' | 'labor_nurse',
-    labor_room_id: ''
+    labor_room_id: 'unassigned'
   });
   const { toast } = useToast();
   const { laborRooms, updateLaborRoom } = useHospital();
@@ -88,11 +88,16 @@ const UserManagement: React.FC = () => {
 
   const handleEditUser = (user: Profile) => {
     setEditingUser(user.id);
-    setEditForm(user);
+    setEditForm({
+      ...user,
+      labor_room_id: user.labor_room_id || 'unassigned'
+    });
   };
 
   const handleSaveEdit = async () => {
     if (!editingUser || !editForm) return;
+
+    const roomId = editForm.labor_room_id === 'unassigned' ? null : editForm.labor_room_id;
 
     // Update user profile
     const { error } = await supabase
@@ -100,7 +105,7 @@ const UserManagement: React.FC = () => {
       .update({
         name: editForm.name,
         role: editForm.role,
-        labor_room_id: editForm.labor_room_id || null,
+        labor_room_id: roomId,
         is_active: editForm.is_active
       })
       .eq('id', editingUser);
@@ -116,8 +121,8 @@ const UserManagement: React.FC = () => {
     }
 
     // If assigning labor nurse to room, update the room
-    if (editForm.role === 'labor_nurse' && editForm.labor_room_id) {
-      await updateLaborRoom(editForm.labor_room_id, {
+    if (editForm.role === 'labor_nurse' && roomId) {
+      await updateLaborRoom(roomId, {
         assignedNurseId: editingUser
       });
     }
@@ -193,12 +198,14 @@ const UserManagement: React.FC = () => {
       }
 
       if (authData.user) {
+        const roomId = newUserForm.labor_room_id === 'unassigned' ? null : newUserForm.labor_room_id;
+
         // Update the profile with the correct role and room assignment
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
             role: newUserForm.role,
-            labor_room_id: newUserForm.labor_room_id || null
+            labor_room_id: roomId
           })
           .eq('id', authData.user.id);
 
@@ -207,8 +214,8 @@ const UserManagement: React.FC = () => {
         }
 
         // If assigning labor nurse to room, update the room
-        if (newUserForm.role === 'labor_nurse' && newUserForm.labor_room_id) {
-          await updateLaborRoom(newUserForm.labor_room_id, {
+        if (newUserForm.role === 'labor_nurse' && roomId) {
+          await updateLaborRoom(roomId, {
             assignedNurseId: authData.user.id
           });
         }
@@ -223,7 +230,7 @@ const UserManagement: React.FC = () => {
           email: '',
           password: '',
           role: 'front_desk',
-          labor_room_id: ''
+          labor_room_id: 'unassigned'
         });
         setShowAddUser(false);
         await fetchUsers();
@@ -326,7 +333,7 @@ const UserManagement: React.FC = () => {
                         <SelectValue placeholder="Select room" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">No room assigned</SelectItem>
+                        <SelectItem value="unassigned">No room assigned</SelectItem>
                         {laborRooms.map((room) => (
                           <SelectItem key={room.id} value={room.id}>
                             {room.name}
@@ -385,14 +392,14 @@ const UserManagement: React.FC = () => {
                           <div>
                             <Label htmlFor="edit-room">Assigned Labor Room</Label>
                             <Select 
-                              value={editForm.labor_room_id || ''} 
+                              value={editForm.labor_room_id || 'unassigned'} 
                               onValueChange={(value) => setEditForm({ ...editForm, labor_room_id: value })}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Select room" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">No room assigned</SelectItem>
+                                <SelectItem value="unassigned">No room assigned</SelectItem>
                                 {laborRooms.map((room) => (
                                   <SelectItem key={room.id} value={room.id}>
                                     {room.name}

@@ -17,7 +17,7 @@ const RoomManagement: React.FC = () => {
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', assignedNurseId: '' });
+  const [editForm, setEditForm] = useState({ name: '', assignedNurseId: 'unassigned' });
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -55,26 +55,28 @@ const RoomManagement: React.FC = () => {
     setEditingRoom(room.id);
     setEditForm({
       name: room.name,
-      assignedNurseId: room.assignedNurseId || ''
+      assignedNurseId: room.assignedNurseId || 'unassigned'
     });
   };
 
   const handleSaveEdit = async () => {
     if (!editingRoom) return;
 
+    const nurseId = editForm.assignedNurseId === 'unassigned' ? undefined : editForm.assignedNurseId;
+
     await updateLaborRoom(editingRoom, {
       name: editForm.name,
-      assignedNurseId: editForm.assignedNurseId || undefined
+      assignedNurseId: nurseId
     });
 
     setEditingRoom(null);
-    setEditForm({ name: '', assignedNurseId: '' });
+    setEditForm({ name: '', assignedNurseId: 'unassigned' });
     await refreshData();
   };
 
   const handleCancelEdit = () => {
     setEditingRoom(null);
-    setEditForm({ name: '', assignedNurseId: '' });
+    setEditForm({ name: '', assignedNurseId: 'unassigned' });
   };
 
   return (
@@ -149,7 +151,7 @@ const RoomManagement: React.FC = () => {
                             <SelectValue placeholder="Select nurse" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">No nurse assigned</SelectItem>
+                            <SelectItem value="unassigned">No nurse assigned</SelectItem>
                             {nurses.map((nurse) => (
                               <SelectItem key={nurse.id} value={nurse.id}>
                                 {nurse.name}
