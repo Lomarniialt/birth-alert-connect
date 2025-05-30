@@ -6,13 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit2, Save, X, Home } from 'lucide-react';
+import { Plus, Edit2, Save, X, Home, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useHospital } from '@/contexts/HospitalContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const RoomManagement: React.FC = () => {
-  const { laborRooms, createLaborRoom, updateLaborRoom, refreshData } = useHospital();
+  const { laborRooms, createLaborRoom, updateLaborRoom, toggleRoomAvailability, refreshData } = useHospital();
   const [nurses, setNurses] = useState<any[]>([]);
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
@@ -22,6 +22,7 @@ const RoomManagement: React.FC = () => {
 
   React.useEffect(() => {
     const fetchNurses = async () => {
+      console.log('Fetching nurses...');
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -29,7 +30,10 @@ const RoomManagement: React.FC = () => {
         .eq('is_active', true);
       
       if (!error) {
+        console.log('Nurses fetched:', data);
         setNurses(data || []);
+      } else {
+        console.error('Error fetching nurses:', error);
       }
     };
     
@@ -46,6 +50,7 @@ const RoomManagement: React.FC = () => {
       return;
     }
 
+    console.log('Creating room with name:', newRoomName);
     await createLaborRoom(newRoomName);
     setNewRoomName('');
     setShowAddRoom(false);
@@ -62,6 +67,15 @@ const RoomManagement: React.FC = () => {
   const handleSaveEdit = async () => {
     if (!editingRoom) return;
 
+    if (!editForm.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a room name",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const nurseId = editForm.assignedNurseId === 'unassigned' ? undefined : editForm.assignedNurseId;
 
     await updateLaborRoom(editingRoom, {
@@ -71,12 +85,16 @@ const RoomManagement: React.FC = () => {
 
     setEditingRoom(null);
     setEditForm({ name: '', assignedNurseId: 'unassigned' });
-    await refreshData();
   };
 
   const handleCancelEdit = () => {
     setEditingRoom(null);
     setEditForm({ name: '', assignedNurseId: 'unassigned' });
+  };
+
+  const handleToggleAvailability = async (roomId: string) => {
+    console.log('Toggling availability for room:', roomId);
+    await toggleRoomAvailability(roomId);
   };
 
   return (
@@ -89,7 +107,7 @@ const RoomManagement: React.FC = () => {
               Room Management
             </CardTitle>
             <CardDescription>
-              Manage labor rooms and nurse assignments
+              Manage labor rooms, nurse assignments, and room availability
             </CardDescription>
           </div>
           <Button onClick={() => setShowAddRoom(true)} disabled={showAddRoom}>
@@ -197,6 +215,19 @@ const RoomManagement: React.FC = () => {
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => handleEditRoom(room)}>
                         <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleToggleAvailability(room.id)}
+                        className={room.isOccupied ? "text-green-600 hover:text-green-700" : "text-orange-600 hover:text-orange-700"}
+                        title={room.isOccupied ? "Mark as Available" : "Mark as Occupied"}
+                      >
+                        {room.isOccupied ? (
+                          <ToggleLeft className="h-4 w-4" />
+                        ) : (
+                          <ToggleRight className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>

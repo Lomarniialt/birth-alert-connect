@@ -20,6 +20,7 @@ interface HospitalContextType {
   refreshData: () => Promise<void>;
   createLaborRoom: (name: string) => Promise<void>;
   updateLaborRoom: (id: string, updates: { assignedNurseId?: string; name?: string }) => Promise<void>;
+  toggleRoomAvailability: (roomId: string) => Promise<void>;
 }
 
 const HospitalContext = createContext<HospitalContextType | null>(null);
@@ -77,6 +78,11 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     
     if (error) {
       console.error('Error fetching labor rooms:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch labor rooms",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -382,57 +388,167 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const createLaborRoom = async (name: string) => {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('labor_rooms')
-      .insert({
-        id: `room_${Date.now()}`,
-        name: name
-      });
-
-    if (error) {
-      console.error('Error creating labor room:', error);
+    if (!user) {
       toast({
         title: "Error",
-        description: "Failed to create labor room",
+        description: "You must be logged in to create labor rooms",
         variant: "destructive"
       });
       return;
     }
 
+    console.log('Creating labor room with name:', name);
+
+    const { data, error } = await supabase
+      .from('labor_rooms')
+      .insert({
+        name: name,
+        is_occupied: false,
+        assigned_nurse_id: null,
+        current_patient_id: null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating labor room:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create labor room: " + error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('Labor room created successfully:', data);
     toast({
       title: "Success",
       description: "Labor room created successfully",
+    });
+
+    await addActivityLog({
+      action: 'Labor Room Created',
+      details: `New labor room "${name}" created`,
+      userId: user.id,
+      userName: user.name
     });
 
     await fetchLaborRooms();
   };
 
   const updateLaborRoom = async (id: string, updates: { assignedNurseId?: string; name?: string }) => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to update labor rooms",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('Updating labor room:', id, 'with updates:', updates);
+
+    const updateData: any = {};
+    
+    if (updates.name !== undefined) {
+      updateData.name = updates.name;
+    }
+    
+    if (updates.assignedNurseId !== undefined) {
+      updateData.assigned_nurse_id = updates.assignedNurseId === 'unassigned' ? null : updates.assignedNurseId;
+    }
 
     const { error } = await supabase
       .from('labor_rooms')
-      .update({
-        assigned_nurse_id: updates.assignedNurseId,
-        name: updates.name
-      })
+      .update(updateData)
       .eq('id', id);
 
     if (error) {
       console.error('Error updating labor room:', error);
       toast({
         title: "Error",
-        description: "Failed to update labor room",
+        description: "Failed to update labor room: " + error.message,
         variant: "destructive"
       });
       return;
     }
 
+    const room = laborRooms.find(r => r.id === id);
+    await addActivityLog({
+      action: 'Labor Room Updated',
+      details: `Labor room "${room?.name || id}" updated`,
+      userId: user.id,
+      userName: user.name
+    });
+
     toast({
       title: "Success",
       description: "Labor room updated successfully",
+    });
+
+    await fetchLaborRooms();
+  };
+
+  const toggleRoomAvailability = async (roomId: string) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to update room availability",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const room = laborRooms.find(r => r.id === roomId);
+    if (!room) {
+      toast({
+        title: "Error",
+        description: "Room not found",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Don't allow making a room unavailable if it has a current patient
+    if (!room.isOccupied && room.currentPatientId) {
+      toast({
+        title: "Error",
+        description: "Cannot make room unavailable while it has a current patient",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('labor_rooms')
+      .update({
+        is_occupied: !room.isOccupied,
+        // If making room available, clear assigned nurse and patient
+        assigned_nurse_id: !room.isOccupied ? null : room.assignedNurseId,
+        current_patient_id: !room.isOccupied ? null : room.currentPatientId
+      })
+      .eq('id', roomId);
+
+    if (error) {
+      console.error('Error toggling room availability:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update room availability: " + error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await addActivityLog({
+      action: 'Room Availability Updated',
+      details: `Room "${room.name}" marked as ${room.isOccupied ? 'available' : 'occupied'}`,
+      userId: user.id,
+      userName: user.name
+    });
+
+    toast({
+      title: "Success",
+      description: `Room ${room.isOccupied ? 'made available' : 'marked as occupied'}`,
     });
 
     await fetchLaborRooms();
@@ -453,7 +569,8 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       addActivityLog,
       refreshData,
       createLaborRoom,
-      updateLaborRoom
+      updateLaborRoom,
+      toggleRoomAvailability
     }}>
       {children}
     </HospitalContext.Provider>
