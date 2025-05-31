@@ -25,9 +25,13 @@ export const fetchLaborRooms = async (): Promise<LaborRoom[]> => {
 export const createLaborRoom = async (name: string) => {
   console.log('Creating labor room with name:', name);
 
+  // Generate a unique ID for the labor room
+  const roomId = crypto.randomUUID();
+
   const { data, error } = await supabase
     .from('labor_rooms')
     .insert({
+      id: roomId,
       name: name,
       is_occupied: false,
       assigned_nurse_id: null,

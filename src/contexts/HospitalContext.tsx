@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Patient, LaborRoom, MessageTemplate, ActivityLog } from '@/types';
 import { HospitalContextType } from './types';
@@ -19,7 +18,8 @@ import {
 import { 
   fetchMessageTemplates, 
   addMessageTemplate as addMessageTemplateService, 
-  updateMessageTemplate as updateMessageTemplateService 
+  updateMessageTemplate as updateMessageTemplateService,
+  processMessageTemplate 
 } from '@/services/messageTemplateService';
 import { 
   fetchActivityLogs, 
@@ -173,19 +173,24 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const deliveryTime = new Date().toLocaleString();
       
       if (template) {
-        const message = template.content
-          .replace('{{patientName}}', patient.fullName)
-          .replace('{{babyGender}}', details.babyGender)
-          .replace('{{deliveryTime}}', deliveryTime);
+        // Use the enhanced message processing that includes next of kin data
+        const processedMessage = await processMessageTemplate(
+          template.content, 
+          patientId, 
+          { 
+            babyGender: details.babyGender, 
+            deliveryTime 
+          }
+        );
         
-        console.log(`SMS sent to ${patient.nextOfKinPhone}: ${message}`);
+        console.log(`SMS sent to ${patient.nextOfKinPhone}: ${processedMessage}`);
       }
 
       await completeDeliveryService(patientId, details);
 
       await addActivityLog({
         action: 'Delivery Completed',
-        details: `${patient.fullName} delivered a ${details.babyGender} baby. SMS sent to next of kin.`,
+        details: `${patient.fullName} delivered a ${details.babyGender} baby. SMS sent to next of kin: ${patient.nextOfKinName}.`,
         userId: user.id,
         userName: user.name,
         patientId

@@ -53,3 +53,32 @@ export const updateMessageTemplate = async (id: string, updates: Partial<Message
     throw error;
   }
 };
+
+export const processMessageTemplate = async (templateContent: string, patientId: string, additionalData?: { babyGender?: string; deliveryTime?: string }) => {
+  // Fetch patient data including next of kin information
+  const { data: patient, error } = await supabase
+    .from('patients')
+    .select('*')
+    .eq('id', patientId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching patient data for message template:', error);
+    throw error;
+  }
+
+  const deliveryTime = additionalData?.deliveryTime || new Date().toLocaleString();
+  
+  // Replace template variables with actual data
+  let processedMessage = templateContent
+    .replace(/\{\{patientName\}\}/g, patient.full_name)
+    .replace(/\{\{nextOfKinName\}\}/g, patient.next_of_kin_name)
+    .replace(/\{\{nextOfKinPhone\}\}/g, patient.next_of_kin_phone)
+    .replace(/\{\{deliveryTime\}\}/g, deliveryTime);
+
+  if (additionalData?.babyGender) {
+    processedMessage = processedMessage.replace(/\{\{babyGender\}\}/g, additionalData.babyGender);
+  }
+
+  return processedMessage;
+};

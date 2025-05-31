@@ -32,9 +32,10 @@ const TemplateManagement: React.FC = () => {
 
   const templateVariables = [
     '{{patientName}} - Patient\'s full name',
+    '{{nextOfKinName}} - Next of kin\'s name',
+    '{{nextOfKinPhone}} - Next of kin\'s phone number',
     '{{babyGender}} - Baby\'s gender (male/female)',
-    '{{deliveryTime}} - Time of delivery',
-    '{{nextOfKinName}} - Next of kin\'s name'
+    '{{deliveryTime}} - Time of delivery'
   ];
 
   return (
@@ -45,7 +46,7 @@ const TemplateManagement: React.FC = () => {
             <div>
               <CardTitle>Message Templates</CardTitle>
               <CardDescription>
-                Manage SMS notification templates
+                Manage SMS notification templates with dynamic patient data
               </CardDescription>
             </div>
             <Button onClick={() => setIsAddingTemplate(true)}>
@@ -76,7 +77,7 @@ const TemplateManagement: React.FC = () => {
                     id="templateContent"
                     value={newTemplate.content}
                     onChange={(e) => setNewTemplate({ ...newTemplate, content: e.target.value })}
-                    placeholder="Enter message template..."
+                    placeholder="Hello {{nextOfKinName}}, we wanted to inform you that {{patientName}} has delivered a healthy {{babyGender}} baby at {{deliveryTime}}. Please contact us for more details."
                     rows={4}
                   />
                 </div>
@@ -87,6 +88,9 @@ const TemplateManagement: React.FC = () => {
                       <li key={index} className="font-mono">• {variable}</li>
                     ))}
                   </ul>
+                  <p className="text-xs text-blue-600 mt-2">
+                    Variables will be automatically replaced with actual patient data when messages are sent.
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={handleAddTemplate}>Create Template</Button>
@@ -127,12 +131,13 @@ const TemplateManagement: React.FC = () => {
                 <div className="bg-gray-50 p-3 rounded text-sm">
                   {template.content}
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+              </CardContent>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  </div>
   );
 };
 
