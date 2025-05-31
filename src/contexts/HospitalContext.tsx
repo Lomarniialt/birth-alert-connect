@@ -1,27 +1,30 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Patient, LaborRoom, MessageTemplate, ActivityLog } from '@/types';
+import { HospitalContextType } from './types';
 import { useAuth } from './AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-interface HospitalContextType {
-  patients: Patient[];
-  laborRooms: LaborRoom[];
-  messageTemplates: MessageTemplate[];
-  activityLogs: ActivityLog[];
-  isLoading: boolean;
-  registerPatient: (patient: Omit<Patient, 'id' | 'status' | 'registeredAt'>) => Promise<void>;
-  acceptPatient: (patientId: string, laborRoomId: string) => Promise<void>;
-  completeDelivery: (patientId: string, details: { babyGender: 'male' | 'female'; deliveryNotes: string; templateId: string }) => Promise<void>;
-  addMessageTemplate: (template: Omit<MessageTemplate, 'id'>) => Promise<void>;
-  updateMessageTemplate: (id: string, template: Partial<MessageTemplate>) => Promise<void>;
-  addActivityLog: (log: Omit<ActivityLog, 'id' | 'timestamp'>) => Promise<void>;
-  refreshData: () => Promise<void>;
-  createLaborRoom: (name: string) => Promise<void>;
-  updateLaborRoom: (id: string, updates: { assignedNurseId?: string; name?: string }) => Promise<void>;
-  toggleRoomAvailability: (roomId: string) => Promise<void>;
-}
+import { 
+  fetchPatients, 
+  registerPatient as registerPatientService, 
+  acceptPatient as acceptPatientService, 
+  completeDelivery as completeDeliveryService 
+} from '@/services/patientService';
+import { 
+  fetchLaborRooms, 
+  createLaborRoom as createLaborRoomService, 
+  updateLaborRoom as updateLaborRoomService, 
+  toggleRoomAvailability as toggleRoomAvailabilityService 
+} from '@/services/laborRoomService';
+import { 
+  fetchMessageTemplates, 
+  addMessageTemplate as addMessageTemplateService, 
+  updateMessageTemplate as updateMessageTemplateService 
+} from '@/services/messageTemplateService';
+import { 
+  fetchActivityLogs, 
+  addActivityLog as addActivityLogService 
+} from '@/services/activityLogService';
 
 const HospitalContext = createContext<HospitalContextType | null>(null);
 
@@ -34,117 +37,48 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchPatients = async () => {
-    const { data, error } = await supabase
-      .from('patients')
-      .select('*')
-      .order('registered_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching patients:', error);
+  const loadPatients = async () => {
+    try {
+      const data = await fetchPatients();
+      setPatients(data);
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to fetch patients",
         variant: "destructive"
       });
-      return;
     }
-    
-    // Map database fields to TypeScript interface
-    const mappedPatients: Patient[] = (data || []).map(patient => ({
-      id: patient.id,
-      fullName: patient.full_name,
-      deliveryDate: patient.delivery_date,
-      nextOfKinName: patient.next_of_kin_name,
-      nextOfKinPhone: patient.next_of_kin_phone,
-      status: patient.status,
-      assignedNurseId: patient.assigned_nurse_id,
-      laborRoomId: patient.labor_room_id,
-      registeredBy: patient.registered_by,
-      registeredAt: patient.registered_at,
-      deliveredAt: patient.delivered_at,
-      babyGender: patient.baby_gender,
-      deliveryNotes: patient.delivery_notes
-    }));
-    
-    setPatients(mappedPatients);
   };
 
-  const fetchLaborRooms = async () => {
-    const { data, error } = await supabase
-      .from('labor_rooms')
-      .select('*')
-      .order('name');
-    
-    if (error) {
-      console.error('Error fetching labor rooms:', error);
+  const loadLaborRooms = async () => {
+    try {
+      const data = await fetchLaborRooms();
+      setLaborRooms(data);
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to fetch labor rooms",
         variant: "destructive"
       });
-      return;
     }
-    
-    // Map database fields to TypeScript interface
-    const mappedRooms: LaborRoom[] = (data || []).map(room => ({
-      id: room.id,
-      name: room.name,
-      isOccupied: room.is_occupied,
-      assignedNurseId: room.assigned_nurse_id,
-      currentPatientId: room.current_patient_id
-    }));
-    
-    setLaborRooms(mappedRooms);
   };
 
-  const fetchMessageTemplates = async () => {
-    const { data, error } = await supabase
-      .from('message_templates')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching message templates:', error);
-      return;
+  const loadMessageTemplates = async () => {
+    try {
+      const data = await fetchMessageTemplates();
+      setMessageTemplates(data);
+    } catch (error) {
+      console.error('Error loading message templates:', error);
     }
-    
-    // Map database fields to TypeScript interface
-    const mappedTemplates: MessageTemplate[] = (data || []).map(template => ({
-      id: template.id,
-      name: template.name,
-      content: template.content,
-      isActive: template.is_active,
-      createdBy: template.created_by
-    }));
-    
-    setMessageTemplates(mappedTemplates);
   };
 
-  const fetchActivityLogs = async () => {
-    const { data, error } = await supabase
-      .from('activity_logs')
-      .select('*')
-      .order('timestamp', { ascending: false })
-      .limit(50);
-    
-    if (error) {
-      console.error('Error fetching activity logs:', error);
-      return;
+  const loadActivityLogs = async () => {
+    try {
+      const data = await fetchActivityLogs();
+      setActivityLogs(data);
+    } catch (error) {
+      console.error('Error loading activity logs:', error);
     }
-    
-    // Map database fields to TypeScript interface
-    const mappedLogs: ActivityLog[] = (data || []).map(log => ({
-      id: log.id,
-      action: log.action,
-      details: log.details,
-      userId: log.user_id,
-      userName: log.user_name,
-      timestamp: log.timestamp,
-      patientId: log.patient_id
-    }));
-    
-    setActivityLogs(mappedLogs);
   };
 
   const refreshData = async () => {
@@ -152,10 +86,10 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     
     setIsLoading(true);
     await Promise.all([
-      fetchPatients(),
-      fetchLaborRooms(),
-      fetchMessageTemplates(),
-      fetchActivityLogs()
+      loadPatients(),
+      loadLaborRooms(),
+      loadMessageTemplates(),
+      loadActivityLogs()
     ]);
     setIsLoading(false);
   };
@@ -169,109 +103,63 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const addActivityLog = async (log: Omit<ActivityLog, 'id' | 'timestamp'>) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('activity_logs')
-      .insert({
-        action: log.action,
-        details: log.details,
-        user_id: log.userId,
-        user_name: log.userName,
-        patient_id: log.patientId
-      });
-
-    if (error) {
+    try {
+      await addActivityLogService(log);
+      await loadActivityLogs();
+    } catch (error) {
       console.error('Error adding activity log:', error);
-      return;
     }
-
-    await fetchActivityLogs();
   };
 
   const registerPatient = async (patientData: Omit<Patient, 'id' | 'status' | 'registeredAt'>) => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('patients')
-      .insert({
-        full_name: patientData.fullName,
-        delivery_date: patientData.deliveryDate || null,
-        next_of_kin_name: patientData.nextOfKinName,
-        next_of_kin_phone: patientData.nextOfKinPhone,
-        registered_by: user.id
-      })
-      .select()
-      .single();
+    try {
+      const data = await registerPatientService(patientData, user.id);
 
-    if (error) {
-      console.error('Error registering patient:', error);
+      await addActivityLog({
+        action: 'Patient Registered',
+        details: `New patient ${patientData.fullName} registered`,
+        userId: user.id,
+        userName: user.name,
+        patientId: data.id
+      });
+
+      await loadPatients();
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to register patient",
         variant: "destructive"
       });
-      return;
     }
-
-    await addActivityLog({
-      action: 'Patient Registered',
-      details: `New patient ${patientData.fullName} registered`,
-      userId: user.id,
-      userName: user.name,
-      patientId: data.id
-    });
-
-    await fetchPatients();
   };
 
   const acceptPatient = async (patientId: string, laborRoomId: string) => {
     if (!user) return;
 
-    // Update patient
-    const { error: patientError } = await supabase
-      .from('patients')
-      .update({
-        status: 'in_labor',
-        labor_room_id: laborRoomId,
-        assigned_nurse_id: user.id
-      })
-      .eq('id', patientId);
+    try {
+      await acceptPatientService(patientId, laborRoomId, user.id);
 
-    if (patientError) {
-      console.error('Error accepting patient:', patientError);
+      const patient = patients.find(p => p.id === patientId);
+      const room = laborRooms.find(r => r.id === laborRoomId);
+      
+      await addActivityLog({
+        action: 'Patient Accepted',
+        details: `Patient ${patient?.fullName} accepted into ${room?.name}`,
+        userId: user.id,
+        userName: user.name,
+        patientId
+      });
+
+      await Promise.all([loadPatients(), loadLaborRooms()]);
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to accept patient",
         variant: "destructive"
       });
-      return;
     }
-
-    // Update labor room
-    const { error: roomError } = await supabase
-      .from('labor_rooms')
-      .update({
-        is_occupied: true,
-        current_patient_id: patientId,
-        assigned_nurse_id: user.id
-      })
-      .eq('id', laborRoomId);
-
-    if (roomError) {
-      console.error('Error updating labor room:', roomError);
-    }
-
-    const patient = patients.find(p => p.id === patientId);
-    const room = laborRooms.find(r => r.id === laborRoomId);
-    
-    await addActivityLog({
-      action: 'Patient Accepted',
-      details: `Patient ${patient?.fullName} accepted into ${room?.name}`,
-      userId: user.id,
-      userName: user.name,
-      patientId
-    });
-
-    await Promise.all([fetchPatients(), fetchLaborRooms()]);
   };
 
   const completeDelivery = async (patientId: string, details: { babyGender: 'male' | 'female'; deliveryNotes: string; templateId: string }) => {
@@ -280,111 +168,65 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const patient = patients.find(p => p.id === patientId);
     if (!patient) return;
 
-    const template = messageTemplates.find(t => t.id === details.templateId);
-    const deliveryTime = new Date().toLocaleString();
-    
-    // Simulate SMS sending
-    if (template) {
-      const message = template.content
-        .replace('{{patientName}}', patient.fullName)
-        .replace('{{babyGender}}', details.babyGender)
-        .replace('{{deliveryTime}}', deliveryTime);
+    try {
+      const template = messageTemplates.find(t => t.id === details.templateId);
+      const deliveryTime = new Date().toLocaleString();
       
-      console.log(`SMS sent to ${patient.nextOfKinPhone}: ${message}`);
-    }
+      if (template) {
+        const message = template.content
+          .replace('{{patientName}}', patient.fullName)
+          .replace('{{babyGender}}', details.babyGender)
+          .replace('{{deliveryTime}}', deliveryTime);
+        
+        console.log(`SMS sent to ${patient.nextOfKinPhone}: ${message}`);
+      }
 
-    // Update patient
-    const { error: patientError } = await supabase
-      .from('patients')
-      .update({
-        status: 'delivered',
-        delivered_at: new Date().toISOString(),
-        baby_gender: details.babyGender,
-        delivery_notes: details.deliveryNotes
-      })
-      .eq('id', patientId);
+      await completeDeliveryService(patientId, details);
 
-    if (patientError) {
-      console.error('Error completing delivery:', patientError);
+      await addActivityLog({
+        action: 'Delivery Completed',
+        details: `${patient.fullName} delivered a ${details.babyGender} baby. SMS sent to next of kin.`,
+        userId: user.id,
+        userName: user.name,
+        patientId
+      });
+
+      await Promise.all([loadPatients(), loadLaborRooms()]);
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to complete delivery",
         variant: "destructive"
       });
-      return;
     }
-
-    // Free up the labor room
-    const { error: roomError } = await supabase
-      .from('labor_rooms')
-      .update({
-        is_occupied: false,
-        current_patient_id: null,
-        assigned_nurse_id: null
-      })
-      .eq('current_patient_id', patientId);
-
-    if (roomError) {
-      console.error('Error updating labor room:', roomError);
-    }
-
-    await addActivityLog({
-      action: 'Delivery Completed',
-      details: `${patient.fullName} delivered a ${details.babyGender} baby. SMS sent to next of kin.`,
-      userId: user.id,
-      userName: user.name,
-      patientId
-    });
-
-    await Promise.all([fetchPatients(), fetchLaborRooms()]);
   };
 
   const addMessageTemplate = async (templateData: Omit<MessageTemplate, 'id'>) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('message_templates')
-      .insert({
-        name: templateData.name,
-        content: templateData.content,
-        is_active: templateData.isActive,
-        created_by: user.id
-      });
-
-    if (error) {
-      console.error('Error adding message template:', error);
+    try {
+      await addMessageTemplateService(templateData, user.id);
+      await loadMessageTemplates();
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to add message template",
         variant: "destructive"
       });
-      return;
     }
-
-    await fetchMessageTemplates();
   };
 
   const updateMessageTemplate = async (id: string, updates: Partial<MessageTemplate>) => {
-    const { error } = await supabase
-      .from('message_templates')
-      .update({
-        name: updates.name,
-        content: updates.content,
-        is_active: updates.isActive
-      })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error updating message template:', error);
+    try {
+      await updateMessageTemplateService(id, updates);
+      await loadMessageTemplates();
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to update message template",
         variant: "destructive"
       });
-      return;
     }
-
-    await fetchMessageTemplates();
   };
 
   const createLaborRoom = async (name: string) => {
@@ -397,43 +239,32 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
 
-    console.log('Creating labor room with name:', name);
+    try {
+      console.log('Creating labor room with name:', name);
+      const data = await createLaborRoomService(name);
 
-    const { data, error } = await supabase
-      .from('labor_rooms')
-      .insert({
-        name: name,
-        is_occupied: false,
-        assigned_nurse_id: null,
-        current_patient_id: null
-      })
-      .select()
-      .single();
+      console.log('Labor room created successfully:', data);
+      toast({
+        title: "Success",
+        description: "Labor room created successfully",
+      });
 
-    if (error) {
+      await addActivityLog({
+        action: 'Labor Room Created',
+        details: `New labor room "${name}" created`,
+        userId: user.id,
+        userName: user.name
+      });
+
+      await loadLaborRooms();
+    } catch (error: any) {
       console.error('Error creating labor room:', error);
       toast({
         title: "Error",
         description: "Failed to create labor room: " + error.message,
         variant: "destructive"
       });
-      return;
     }
-
-    console.log('Labor room created successfully:', data);
-    toast({
-      title: "Success",
-      description: "Labor room created successfully",
-    });
-
-    await addActivityLog({
-      action: 'Labor Room Created',
-      details: `New labor room "${name}" created`,
-      userId: user.id,
-      userName: user.name
-    });
-
-    await fetchLaborRooms();
   };
 
   const updateLaborRoom = async (id: string, updates: { assignedNurseId?: string; name?: string }) => {
@@ -446,47 +277,32 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
 
-    console.log('Updating labor room:', id, 'with updates:', updates);
+    try {
+      console.log('Updating labor room:', id, 'with updates:', updates);
+      await updateLaborRoomService(id, updates);
 
-    const updateData: any = {};
-    
-    if (updates.name !== undefined) {
-      updateData.name = updates.name;
-    }
-    
-    if (updates.assignedNurseId !== undefined) {
-      updateData.assigned_nurse_id = updates.assignedNurseId === 'unassigned' ? null : updates.assignedNurseId;
-    }
+      const room = laborRooms.find(r => r.id === id);
+      await addActivityLog({
+        action: 'Labor Room Updated',
+        details: `Labor room "${room?.name || id}" updated`,
+        userId: user.id,
+        userName: user.name
+      });
 
-    const { error } = await supabase
-      .from('labor_rooms')
-      .update(updateData)
-      .eq('id', id);
+      toast({
+        title: "Success",
+        description: "Labor room updated successfully",
+      });
 
-    if (error) {
+      await loadLaborRooms();
+    } catch (error: any) {
       console.error('Error updating labor room:', error);
       toast({
         title: "Error",
         description: "Failed to update labor room: " + error.message,
         variant: "destructive"
       });
-      return;
     }
-
-    const room = laborRooms.find(r => r.id === id);
-    await addActivityLog({
-      action: 'Labor Room Updated',
-      details: `Labor room "${room?.name || id}" updated`,
-      userId: user.id,
-      userName: user.name
-    });
-
-    toast({
-      title: "Success",
-      description: "Labor room updated successfully",
-    });
-
-    await fetchLaborRooms();
   };
 
   const toggleRoomAvailability = async (roomId: string) => {
@@ -509,49 +325,30 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
 
-    // Don't allow making a room unavailable if it has a current patient
-    if (!room.isOccupied && room.currentPatientId) {
-      toast({
-        title: "Error",
-        description: "Cannot make room unavailable while it has a current patient",
-        variant: "destructive"
+    try {
+      await toggleRoomAvailabilityService(roomId, room);
+
+      await addActivityLog({
+        action: 'Room Availability Updated',
+        details: `Room "${room.name}" marked as ${room.isOccupied ? 'available' : 'occupied'}`,
+        userId: user.id,
+        userName: user.name
       });
-      return;
-    }
 
-    const { error } = await supabase
-      .from('labor_rooms')
-      .update({
-        is_occupied: !room.isOccupied,
-        // If making room available, clear assigned nurse and patient
-        assigned_nurse_id: !room.isOccupied ? null : room.assignedNurseId,
-        current_patient_id: !room.isOccupied ? null : room.currentPatientId
-      })
-      .eq('id', roomId);
+      toast({
+        title: "Success",
+        description: `Room ${room.isOccupied ? 'made available' : 'marked as occupied'}`,
+      });
 
-    if (error) {
+      await loadLaborRooms();
+    } catch (error: any) {
       console.error('Error toggling room availability:', error);
       toast({
         title: "Error",
-        description: "Failed to update room availability: " + error.message,
+        description: error.message || "Failed to update room availability",
         variant: "destructive"
       });
-      return;
     }
-
-    await addActivityLog({
-      action: 'Room Availability Updated',
-      details: `Room "${room.name}" marked as ${room.isOccupied ? 'available' : 'occupied'}`,
-      userId: user.id,
-      userName: user.name
-    });
-
-    toast({
-      title: "Success",
-      description: `Room ${room.isOccupied ? 'made available' : 'marked as occupied'}`,
-    });
-
-    await fetchLaborRooms();
   };
 
   return (
