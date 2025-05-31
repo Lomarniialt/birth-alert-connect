@@ -131,13 +131,12 @@ const TemplateManagement: React.FC = () => {
                 <div className="bg-gray-50 p-3 rounded text-sm">
                   {template.content}
                 </div>
-              </CardContent>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
