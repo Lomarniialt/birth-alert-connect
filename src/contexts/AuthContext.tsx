@@ -112,6 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     console.log('AuthProvider: Logout initiated');
+    setIsLoading(true);
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('AuthProvider: Logout error:', error);

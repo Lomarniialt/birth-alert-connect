@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,12 +11,22 @@ import { useNavigate } from 'react-router-dom';
 
 const AuthPage: React.FC = () => {
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const { login, isLoading } = useAuth();
+  const { user, login, isLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Redirect if already logged in
+  useEffect(() => {
+    console.log('AuthPage: Checking auth state - User:', !!user, 'Loading:', isLoading);
+    if (!isLoading && user) {
+      console.log('AuthPage: User already logged in, redirecting to home');
+      navigate('/');
+    }
+  }, [user, isLoading, navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('AuthPage: Login form submitted');
     
     const success = await login(loginForm.email, loginForm.password);
     
@@ -25,7 +35,7 @@ const AuthPage: React.FC = () => {
         title: "Login Successful",
         description: "Welcome to MaternityCare System",
       });
-      navigate('/');
+      console.log('AuthPage: Login successful, will redirect via useEffect');
     } else {
       toast({
         title: "Login Failed",
@@ -34,6 +44,11 @@ const AuthPage: React.FC = () => {
       });
     }
   };
+
+  // Don't render the form if user is already logged in
+  if (!isLoading && user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

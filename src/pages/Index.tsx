@@ -12,12 +12,15 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('Index: Auth state changed - User:', !!user, 'Loading:', isLoading);
     if (!isLoading && !user) {
+      console.log('Index: No user found, redirecting to auth');
       navigate('/auth');
     }
   }, [user, isLoading, navigate]);
 
   if (isLoading) {
+    console.log('Index: Showing loading state');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
@@ -29,8 +32,11 @@ const Index = () => {
   }
 
   if (!user) {
+    console.log('Index: No user, returning null (will redirect)');
     return null; // Will redirect to auth
   }
+
+  console.log('Index: User found, rendering dashboard for role:', user.role);
 
   const renderDashboard = () => {
     switch (user.role) {
